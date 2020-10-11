@@ -1,0 +1,9 @@
+[submodule "libs/ats-bytestring"]
+	path = libs/ats-bytestring
+	url = https://github.com/dambaev/ats-bytestring.git
+[submodule "libs/ats-vicpack"]
+	path = libs/ats-vicpack
+	url = https://github.com/dambaev/ats-vicpack.git
+[submodule "libs/ats-base64"]
+	path = libs/ats-base64
+	url = https://github.com/dambaev/ats-base64.git
