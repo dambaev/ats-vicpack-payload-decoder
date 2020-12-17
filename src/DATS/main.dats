@@ -4,8 +4,7 @@
 #define ATS_DYNLOADFLAG 0
 
 #define LIBS_targetloc "../libs" (* search path for external libs *)
-staload BS="{$LIBS}/ats-bytestring/SATS/bytestring.sats"
-staload "{$LIBS}/ats-bytestring/SATS/bytestring.sats" (* overload operators *)
+#include "{$LIBS}/ats-bytestring/HATS/bytestring.hats"
 staload Vicpack="{$LIBS}/ats-vicpack/src/SATS/vicpack.sats"
 staload B64="{$LIBS}/ats-base64/SATS/ats-base64.sats"
 
@@ -72,7 +71,7 @@ fn
   ( i: !$BS.Bytestring0
   ): void = 
 let
-  val i_sz = $BS.length i
+  val i_sz = length i
 in
   ifcase
   | i_sz < 4 => ()
@@ -101,10 +100,7 @@ in
             val ( arr_pf | arr_p) = arrayptr_takeout_viewptr arr
             var decoded: $BS.Bytestring0?
             val () = decoded := $BS.pack( arr_pf | arr_p, sz, cap)
-            val () =
-              case+ $Vicpack.parse decoded of
-              | ~None_vt() => ()
-              | ~Some_vt( packages) => handle_vicpack( packages) where {
+            val () = handle_vicpack( $Vicpack.parse decoded) where {
                 fun
                   handle_vicpack
                   {n:int | n >= 0}
@@ -157,7 +153,7 @@ fn
   ( i: &$BS.BytestringNSH0 >> $BS.BytestringNSH0
   ): void = 
 let
-  prval () = lemma_bytestring_param( i)
+  prval () = $BS.lemma_bytestring_param( i)
   var lines: List_vt( $BS.Bytestring0)?
   val () = lines := $BS.split_on( c2uc '\n', i)
   val last_idx = list_vt_length lines
@@ -187,7 +183,7 @@ in
       case+ xs of
       | ~list_vt_nil() => ()
       | ~list_vt_cons( head, tail) =>
-        if $BS.length head > 0
+        if length head > 0
         then cleaner( tail, env) where {
           val () = handle_line( head)
           val () = $BS.free( head, env)
@@ -227,12 +223,28 @@ in
   else loop (fds_pf | buf, fds, fds_sz) where {
     val available = g1ofg0( get_fd_pending_bytes( pollfd. fd))
     val () = println!("available for read: ", available)
-    val ( pf, fpf | p) = array_ptr_alloc<uchar>( available)
-    val readed = read{uchar}( pf | 0, p, available)
-    var newinput: $BS.Bytestring0?
-    val () = newinput := $BS.pack( pf, fpf | p, available, available)
-    val () = buf := buf + newinput
-    val () = handle_lines( buf)
+    val () =
+      if available > 0
+      then {
+        val ( pf, fpf | p) = array_ptr_alloc<uchar>( available)
+        val readed = read{uchar}( pf | 0, p, available)
+        var newinput: $BS.Bytestring0?
+        val () = newinput := $BS.pack( pf, fpf | p, available, available)
+        prval _ = $showtype buf
+        val () =
+          if length buf > 0
+          then {
+            prval () = $BS.lemma_bytestring_param(buf)
+            val () = buf := buf + newinput
+            val () = handle_lines( buf)
+          }
+          else {
+            val () = free buf
+            val () = buf := newinput
+            val () = handle_lines( buf)
+          }
+      }
+      else ()
   }
 end
 
