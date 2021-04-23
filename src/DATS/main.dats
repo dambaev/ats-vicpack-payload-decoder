@@ -7,6 +7,7 @@
 #include "{$LIBS}/ats-bytestring/HATS/bytestring.hats"
 staload Vicpack="{$LIBS}/ats-vicpack/src/SATS/vicpack.sats"
 staload B64="{$LIBS}/ats-base64/SATS/ats-base64.sats"
+staload UN="prelude/SATS/unsafe.sats"
 
 %{
 
@@ -78,12 +79,12 @@ in
   | i_sz <> i2sz 4 * ( i_sz / i2sz 4) => ()
   | _ => {
     prval _ = $BS.lemma_bytestring_param(i)
-    val ( pf | p, sz) = $BS.bs2bytes(i)
+    val ( pf | p, sz) = $BS.bs2bytes_ro(i)
     val p_s = ptr2str( pf | p, sz) where {
       extern castfn
         ptr2str
         {n:nat}{l:addr}
-        ( !array_v(byte, l, n) 
+        ( !array_v(char, l, n)
         | ptr l
         , size_t n
         ):<> string(n)
@@ -100,7 +101,13 @@ in
             val ( arr_pf | arr_p) = arrayptr_takeout_viewptr arr
             var decoded: $BS.Bytestring0?
             val () = decoded := $BS.pack( arr_pf | arr_p, sz, cap)
-            val () = handle_vicpack( $Vicpack.parse decoded) where {
+            val (decoded_ls, unsupported_sz) = $Vicpack.parse decoded
+            val () =
+              if unsupported_sz > 0
+              then $BS.printlnC( $BS.pack "unsupported packages count: "
+                + $BS.pack_uint32 ($UN.cast{uint32}unsupported_sz)
+                )
+            val () = handle_vicpack( decoded_ls) where {
                 fun
                   handle_vicpack
                   {n:int | n >= 0}
@@ -155,7 +162,7 @@ fn
 let
   prval () = $BS.lemma_bytestring_param( i)
   var lines: List_vt( $BS.Bytestring0)?
-  val () = lines := $BS.split_on( c2uc '\n', i)
+  val () = lines := $BS.split_on( '\n', i)
   val last_idx = list_vt_length lines
 in
   ifcase
@@ -230,7 +237,6 @@ in
         val readed = read{uchar}( pf | 0, p, available)
         var newinput: $BS.Bytestring0?
         val () = newinput := $BS.pack( pf, fpf | p, available, available)
-        prval _ = $showtype buf
         val () =
           if length buf > 0
           then {
